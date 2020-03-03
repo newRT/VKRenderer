@@ -321,14 +321,23 @@ private:
 		VkCommandBufferBeginInfo beginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
 		vkBeginCommandBuffer(_commandBuffers[imageIndex], &beginInfo);
 
-		VkClearColorValue color = { 1.0f, 0.0f, 0.0f, 1.0f };
+		// use renderpass to clear
+		VkClearColorValue cleanColor = { 48.0 / 255.f, 10.0 / 255.0f, 36.0 / 255.0f, 1.0f };
+		VkClearValue clearValue = { cleanColor };
 
-		VkImageSubresourceRange range = {};
-		range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		range.layerCount = 1;
-		range.levelCount = 1;
+		VkRenderPassBeginInfo renderPassBeginInfo = { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
+		renderPassBeginInfo.renderPass = _renderPass;
+		renderPassBeginInfo.framebuffer = _swapChainFrameBuffers[imageIndex];
+		renderPassBeginInfo.clearValueCount = 1;
+		renderPassBeginInfo.pClearValues = &clearValue;
+		renderPassBeginInfo.renderArea.extent.width = WIDTH;
+		renderPassBeginInfo.renderArea.extent.height = HEIGHT;
 
-		vkCmdClearColorImage(_commandBuffers[imageIndex], _swapChainImages[imageIndex], VK_IMAGE_LAYOUT_GENERAL, &color, 1, &range);
+		vkCmdBeginRenderPass(_commandBuffers[imageIndex], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+		
+		// draw calls go here
+
+		vkCmdEndRenderPass(_commandBuffers[imageIndex]);
 
 		vkEndCommandBuffer(_commandBuffers[imageIndex]);
 
@@ -1014,6 +1023,7 @@ private:
 		vkGetDeviceQueue(_device, indices.graphicsFamily.value(), 0, &_graphicsQueue);
 		vkGetDeviceQueue(_device, indices.presentFamily.value(), 0, &_presentQueue);
 	}
+
 	void _setupMessenger()
 	{
 		if (!enableValidationLayer) return;
