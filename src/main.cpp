@@ -15,7 +15,6 @@
 #include <optional>
 #include <vector>
 
-
 // global const
 const int		WIDTH			= 800;
 const int		HEIGHT			= 600;
@@ -109,6 +108,8 @@ public:
 
 private:
 	GLFWwindow* _window;
+	int			windowWidth;
+	int			windowHeight;
 
 	// vulkan
 	VkInstance							_instance;
@@ -168,7 +169,6 @@ private:
 	// resized
 	bool								_framebufferResized = false;
 
-
 	// shaders
 	VkShaderModule						_shaderModuleVS;
 	VkShaderModule						_shaderModulePS;
@@ -193,7 +193,11 @@ private:
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);	// no openGL api
 		glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);		// no resize
 
-		_window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan Renderer", nullptr, nullptr);
+		{
+			windowWidth = WIDTH;
+			windowHeight = HEIGHT;
+		}
+		_window = glfwCreateWindow(windowWidth, windowHeight, "Vulkan Renderer", nullptr, nullptr);
 		glfwSetWindowUserPointer(_window, this);
 		glfwSetFramebufferSizeCallback(_window, framebufferResizeCallback);
 	}
@@ -577,8 +581,8 @@ private:
 
 			VkExtent2D actualExtent = { static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
 
-			//actualExtent.width = std::max(capabilities.minImageExtent.width, std::min(capabilities.maxImageExtent.width, actualExtent.width));
-			//actualExtent.height = std::max(capabilities.minImageExtent.height, std::min(capabilities.maxImageExtent.height, actualExtent.height));
+			actualExtent.width = std::max(capabilities.minImageExtent.width, std::min(capabilities.maxImageExtent.width, actualExtent.width));
+			actualExtent.height = std::max(capabilities.minImageExtent.height, std::min(capabilities.maxImageExtent.height, actualExtent.height));
 
 			return actualExtent;
 		}
@@ -919,7 +923,7 @@ private:
 		glfwGetFramebufferSize(_window, &width, &height);
 		while (width == 0 || height == 0)
 		{
-			glfwGetFramebufferSize(_window, &width, &height);
+			glfwGetFramebufferSize(_window, &windowWidth, &windowWidth);
 			glfwWaitEvents();
 		}
 
@@ -930,6 +934,8 @@ private:
 		_createSwapchain();
 		_createImageViews();
 		_createRenderPass();
+		_createPipelineLayout();
+		_createGraphicsPipeline();
 		_createFrameBuffers();
 		_createCommandBuffers();
 	}
@@ -1104,14 +1110,14 @@ private:
 		renderPassBeginInfo.framebuffer = _swapChainFrameBuffers[imageIndex];
 		renderPassBeginInfo.clearValueCount = 1;
 		renderPassBeginInfo.pClearValues = &clearValue;
-		renderPassBeginInfo.renderArea.extent.width = WIDTH;
-		renderPassBeginInfo.renderArea.extent.height = HEIGHT;
+		renderPassBeginInfo.renderArea.extent.width = windowWidth;
+		renderPassBeginInfo.renderArea.extent.height = windowHeight;
 
 		vkCmdBeginRenderPass(_commandBuffers[imageIndex], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
 		// draw calls go here
-		VkViewport viewport = { 0, float(HEIGHT), float(WIDTH), -float(HEIGHT), 0, 1 };
-		VkRect2D scissor = { {0, 0}, {WIDTH, HEIGHT} };
+		VkViewport viewport = { 0, float(windowHeight), float(windowWidth), -float(windowHeight), 0, 1 };
+		VkRect2D scissor = { {0, 0}, {windowWidth, windowHeight} };
 
 		vkCmdSetViewport(_commandBuffers[imageIndex], 0, 1, &viewport);
 		vkCmdSetScissor(_commandBuffers[imageIndex], 0, 1, &scissor);
@@ -1165,6 +1171,7 @@ private:
 		result = vkQueuePresentKHR(_presentQueue, &presentInfo);
 		if (result == VK_ERROR_OUT_OF_POOL_MEMORY_KHR || result == VK_SUBOPTIMAL_KHR || _framebufferResized)
 		{
+			glfwGetWindowSize(_window, &windowWidth, &windowHeight);
 			_framebufferResized = false;
 			_recreateSwapChain();
 		}
@@ -1189,13 +1196,18 @@ private:
 
 	void _cleanupSwapChain()
 	{
-
 		for (auto framebuffer : _swapChainFrameBuffers)
 		{
 			vkDestroyFramebuffer(_device, framebuffer, nullptr);
 		}
 
 		vkFreeCommandBuffers(_device, _commandPool, static_cast<uint32_t>(_commandBuffers.size()), _commandBuffers.data());
+
+		vkDestroyPipeline(_device, _graphicsPipeline, nullptr);
+
+		vkDestroyPipelineLayout(_device, _pipelineLayout, nullptr);
+
+		vkDestroyRenderPass(_device, _renderPass, nullptr);
 
 		for (auto imageView : _swapChainImageViews)
 		{
@@ -1207,6 +1219,9 @@ private:
 
 	void _cleanup()
 	{
+		vkDestroyShaderModule(_device, _shaderModuleVS, nullptr);
+		vkDestroyShaderModule(_device, _shaderModulePS, nullptr);
+
 		_cleanupSwapChain();
 
 		for (size_t i = 0; i < MAX_FRAMES; i++)
