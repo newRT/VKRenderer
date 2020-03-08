@@ -6,12 +6,15 @@
 #include <functional>
 #include <cstdlib>
 #include <map>
-#include <optional>
 #include <set>
 #include <cstdint>
 #include <algorithm>
 #include <fstream>
 #include <array>
+#include <assert.h>
+#include <optional>
+#include <vector>
+
 
 // global const
 const int		WIDTH			= 800;
@@ -165,6 +168,12 @@ private:
 	// resized
 	bool								_framebufferResized = false;
 
+
+	// shaders
+	VkShaderModule						_shaderModuleVS;
+	VkShaderModule						_shaderModulePS;
+
+
 private:
 
 	static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
@@ -291,6 +300,80 @@ private:
 		createInfo.pfnUserCallback = debugCallback;
 	}
 
+	void _createPipelineLayout()
+	{
+		VkPipelineLayoutCreateInfo createInfo = { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
+
+		vkCreatePipelineLayout(_device, &createInfo, nullptr, &_pipelineLayout);
+	}
+
+	void _createGraphicsPipeline()
+	{
+		VkGraphicsPipelineCreateInfo createInfo = { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
+
+		VkPipelineShaderStageCreateInfo shaderStages[2] = {  };
+		shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		shaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+		shaderStages[0].module = _shaderModuleVS;
+		shaderStages[0].pName = "main";
+
+		shaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+		shaderStages[1].module = _shaderModulePS;
+		shaderStages[1].pName = "main";
+
+		createInfo.stageCount = sizeof(shaderStages) / sizeof(shaderStages[0]);
+		createInfo.pStages = shaderStages;
+
+		VkPipelineVertexInputStateCreateInfo vertexInput = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
+		createInfo.pVertexInputState = &vertexInput;
+
+		VkPipelineInputAssemblyStateCreateInfo assemblyState = { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
+		assemblyState.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+		createInfo.pInputAssemblyState = &assemblyState;
+
+		VkPipelineTessellationStateCreateInfo tessellationState = { VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO };
+		createInfo.pTessellationState = &tessellationState;
+
+		VkPipelineViewportStateCreateInfo viewport = { VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
+		viewport.viewportCount = 1;
+		viewport.scissorCount = 1;
+		createInfo.pViewportState = &viewport;
+
+		VkPipelineRasterizationStateCreateInfo rasterizationState = { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
+		rasterizationState.polygonMode = VK_POLYGON_MODE_FILL;
+		rasterizationState.lineWidth = 1.0f;
+		createInfo.pRasterizationState = &rasterizationState;
+
+		VkPipelineMultisampleStateCreateInfo multiSampleState = { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
+		multiSampleState.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+		createInfo.pMultisampleState = &multiSampleState;
+
+		VkPipelineDepthStencilStateCreateInfo depthStencilState = { VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
+		createInfo.pDepthStencilState = &depthStencilState;
+
+		VkPipelineColorBlendAttachmentState colorAttachmentState = {};
+		colorAttachmentState.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+
+		VkPipelineColorBlendStateCreateInfo colorBlendState = { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
+		colorBlendState.attachmentCount = 1;
+		colorBlendState.pAttachments = &colorAttachmentState;
+		createInfo.pColorBlendState = &colorBlendState;
+
+		VkDynamicState dynamicStates[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+
+		VkPipelineDynamicStateCreateInfo dynamicState = { VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO };
+		dynamicState.dynamicStateCount = sizeof(dynamicStates) / sizeof(dynamicStates[0]);
+		dynamicState.pDynamicStates = dynamicStates;
+		createInfo.pDynamicState = &dynamicState;
+
+		createInfo.layout = _pipelineLayout;
+		createInfo.renderPass = _renderPass;
+
+		vkCreateGraphicsPipelines(_device, nullptr, 1, &createInfo, nullptr, &_graphicsPipeline);
+		assert(_graphicsPipeline);
+	}
+
 	void _drawFrame()
 	{
 		vkWaitForFences(_device, 1, &_inFlightFences[_currentFrame], VK_TRUE, UINT64_MAX);
@@ -336,6 +419,14 @@ private:
 		vkCmdBeginRenderPass(_commandBuffers[imageIndex], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 		
 		// draw calls go here
+		VkViewport viewport = { 0, float(HEIGHT), float(WIDTH), -float(HEIGHT), 0, 1};
+		VkRect2D scissor = { {0, 0}, {WIDTH, HEIGHT} };
+
+		vkCmdSetViewport(_commandBuffers[imageIndex], 0, 1, &viewport);
+		vkCmdSetScissor(_commandBuffers[imageIndex], 0, 1, &scissor);
+
+		vkCmdBindPipeline(_commandBuffers[imageIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, _graphicsPipeline);
+		vkCmdDraw(_commandBuffers[imageIndex], 3, 1, 0, 0);
 
 		vkCmdEndRenderPass(_commandBuffers[imageIndex]);
 
@@ -399,8 +490,14 @@ private:
 		_pickPhysicalDevice();
 		_createLogicDevice();
 		_createSwapchain();
+
+		_shaderModuleVS = _createShaderModule("shaders/triangle_vert.spv");
+		_shaderModulePS = _createShaderModule("shaders/triangle_frag.spv");
+
 		_createImageViews();
 		_createRenderPass();
+		_createPipelineLayout();
+		_createGraphicsPipeline();
 		_createFrameBuffers();
 		_createCommandPool();
 		_createCommandBuffers();
@@ -621,15 +718,31 @@ private:
 		}
 	}
 
-	VkShaderModule _createShaderModule(const std::vector<char>& code)
+	VkShaderModule  _createShaderModule(const char* path)
 	{
+		// load file
+		FILE* file = fopen(path, "rb");
+		assert(file);
+
+		fseek(file, 0, SEEK_END);
+		long length = ftell(file);
+		assert(length >= 0);
+		fseek(file, 0, SEEK_SET);
+
+		char* buffer = new char[length];
+		assert(buffer);
+
+		size_t rc = fread(buffer, 1, length, file);
+		assert(rc == size_t(length));
+		fclose(file);
+
 		VkShaderModuleCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-		createInfo.codeSize = code.size();
-		createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
+		createInfo.codeSize = length;
+		createInfo.pCode = reinterpret_cast<const uint32_t*>(buffer);
 
-		VkShaderModule shaderModule;
+		VkShaderModule shaderModule = 0;
 		if (vkCreateShaderModule(_device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
 		{
 			throw std::runtime_error("Failed to create shader module");
