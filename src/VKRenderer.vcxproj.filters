@@ -16,7 +16,7 @@
     <Filter Include="glfw">
       <UniqueIdentifier>{b91ad311-1061-4e73-a780-73ca40b14e4f}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Shader">
+    <Filter Include="shaders">
       <UniqueIdentifier>{3f665046-2d7f-425d-81ea-b8cdd1a8097b}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
@@ -89,10 +89,10 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\triangle.vert.glsl">
-      <Filter>Shader</Filter>
+      <Filter>shaders</Filter>
     </None>
     <None Include="shaders\triangle.frag.glsl">
-      <Filter>Shader</Filter>
+      <Filter>shaders</Filter>
     </None>
   </ItemGroup>
 </Project>

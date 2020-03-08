@@ -868,6 +868,8 @@ private:
 		{
 			throw std::runtime_error("Failed to create Command pool");
 		}
+
+		vkResetCommandPool(_device, _commandPool, 0);
 	}
 
 	void _createCommandBuffers()
@@ -1049,8 +1051,8 @@ private:
 		_createLogicDevice();
 		_createSwapchain();
 
-		_shaderModuleVS = _createShaderModule("shaders/triangle_vert.spv");
-		_shaderModulePS = _createShaderModule("shaders/triangle_frag.spv");
+		_shaderModuleVS = _createShaderModule("shaders/triangle.vert.spv");
+		_shaderModulePS = _createShaderModule("shaders/triangle.frag.spv");
 
 		_createImageViews();
 		_createRenderPass();
@@ -1087,13 +1089,11 @@ private:
 
 		_imagesInFlight[imageIndex] = _inFlightFences[_currentFrame];
 
-		vkResetCommandPool(_device, _commandPool, 0);
-
 		VkCommandBufferBeginInfo beginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
 		vkBeginCommandBuffer(_commandBuffers[imageIndex], &beginInfo);
 
 		VkImageMemoryBarrier renderBeginBarrier = _imageBarrier(_swapChainImages[imageIndex], 0, VK_IMAGE_LAYOUT_UNDEFINED, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-		vkCmdPipelineBarrier(_commandBuffers[imageIndex], VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &renderBeginBarrier);
+		vkCmdPipelineBarrier(_commandBuffers[imageIndex], VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &renderBeginBarrier);
 
 		// use renderpass to clear
 		VkClearColorValue cleanColor = { 48.0 / 255.f, 10.0 / 255.0f, 36.0 / 255.0f, 1.0f };

@@ -66,6 +66,12 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>$(VULKAN_SDK)\Lib\vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <CustomBuild>
+      <Command>$(VULKAN_SDK)\Bin\glslangValidator %(FullPath) -V -o shaders/%(Filename).spv</Command>
+      <Outputs>shaders\%(Fullname).spv</Outputs>
+      <AdditionalInputs>%(FullPath)</AdditionalInputs>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -76,6 +82,16 @@
     <Link>
       <AdditionalDependencies>$(VULKAN_SDK)\Lib\vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <CustomBuild>
+      <Command>$(VULKAN_SDK)\Bin\glslangValidator %(FullPath) -V -o shaders/%(Filename).spv</Command>
+    </CustomBuild>
+    <CustomBuild>
+      <Outputs>shaders\%(Fullname).spv</Outputs>
+    </CustomBuild>
+    <CustomBuild>
+      <AdditionalInputs>%(FullPath)</AdditionalInputs>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\extern\glfw\src\context.c" />
@@ -103,8 +119,12 @@
     <ClInclude Include="..\extern\glfw\src\win32_platform.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="shaders\triangle.frag.glsl" />
-    <None Include="shaders\triangle.vert.glsl" />
+    <CustomBuild Include="shaders\triangle.frag.glsl">
+      <FileType>Document</FileType>
+    </CustomBuild>
+    <CustomBuild Include="shaders\triangle.vert.glsl">
+      <FileType>Document</FileType>
+    </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
